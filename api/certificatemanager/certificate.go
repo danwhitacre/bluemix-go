@@ -18,6 +18,8 @@ type Certificate interface {
 	DeleteCertificate(CertID string) error
 	UpdateCertificateMetaData(CertID string, updateData models.CertificateMetadataUpdate) error
 	ReimportCertificate(CertID string, reimportData models.CertificateReimportData) (models.CertificateInfo, error)
+	ListCertificates(InstanceID string) ([]models.CertificateInfo, error)
+	UpdateOrderPolicy(CertID string, autoRenew models.OrderPolicy) (models.OrderPolicy, error)
 }
 
 //Certificates client struct
@@ -101,4 +103,24 @@ func (r *Certificates) ReimportCertificate(CertID string, reimportData models.Ce
 		return certInfo, err
 	}
 	return certInfo, err
+}
+
+//ListCertificates ...
+func (r *Certificates) ListCertificates(InstanceID string) ([]models.CertificateInfo, error) {
+	certificatesInfo := models.CertificatesInfo{}
+	_, err := r.client.Get(fmt.Sprintf("/api/v3/%s/certificates", url.QueryEscape(InstanceID)), &certificatesInfo)
+	if err != nil {
+		return nil, err
+	}
+	return certificatesInfo.CertificateList, err
+}
+
+//UpdateOrderPolicy ..
+func (r *Certificates) UpdateOrderPolicy(CertID string, autoRenew models.OrderPolicy) (models.OrderPolicy, error) {
+	orderPolicyInfo := models.OrderPolicy{}
+	_, err := r.client.Put(fmt.Sprintf("/api/v1/certificate/%s/order/policy", url.QueryEscape(CertID)), autoRenew, &orderPolicyInfo)
+	if err != nil {
+		return orderPolicyInfo, err
+	}
+	return orderPolicyInfo, err
 }

@@ -38,6 +38,8 @@ const (
 	IAMUUMService ServiceName = ServiceName("iamuum")
 	//IAMUUMServicev2 ...
 	IAMUUMServicev2 ServiceName = ServiceName("iamuumv2")
+	//IAMPAPServicev2 ...
+	IAMPAPServicev2 ServiceName = ServiceName("iampapv2")
 	//ICDService ...
 	ICDService ServiceName = ServiceName("icd")
 	//MccpService ...
@@ -48,6 +50,8 @@ const (
 	ResourceManagementServicev2 ServiceName = ServiceName("resource-managementv2")
 	//resourceControllerService
 	ResourceControllerService ServiceName = ServiceName("resource-controller")
+	//resourceControllerServicev2
+	ResourceControllerServicev2 ServiceName = ServiceName("resource-controllerv2")
 	//resourceCatalogService
 	ResourceCatalogrService ServiceName = ServiceName("resource-catalog ")
 	//UAAService ...
@@ -58,6 +62,8 @@ const (
 	SchematicsService ServiceName = ServiceName("schematics")
 	//UserManagement ...
 	UserManagement ServiceName = ServiceName("user-management")
+	//HPCService ...
+	HPCService ServiceName = ServiceName("hpcs")
 )
 
 //Config ...

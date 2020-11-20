@@ -25,6 +25,8 @@ type CisServiceAPI interface {
 	Ips() Ips
 	Dns() Dns
 	Certificates() Certificates
+	Firewall() Firewall
+	RateLimit() RateLimit
 }
 
 //CisService holds the client
@@ -108,6 +110,14 @@ func (c *cisService) Dns() Dns {
 //Certificates implements Certificates records API
 func (c *cisService) Certificates() Certificates {
 	return newCertificatesApi(c.Client)
+}
+
+func (c *cisService) Firewall() Firewall {
+	return newFirewallAPI(c.Client)
+}
+
+func (c *cisService) RateLimit() RateLimit {
+	return newRateLimitAPI(c.Client)
 }
 
 func errorsToString(e []Error) string {

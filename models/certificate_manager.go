@@ -16,6 +16,8 @@ type CertificateInfo struct {
 	Imported     bool                     `json:"imported"`
 	HasPrevious  bool                     `json:"has_previous"`
 	IssuanceInfo *CertificateIssuanceInfo `json:"issuance_info"`
+	SerialNumber string                   `json:"serial_number,omitempty"`
+	OrderPolicy  OrderPolicy              `json:"order_policy,omitempty"`
 }
 
 //CertificateIssuanceInfo struct
@@ -94,4 +96,15 @@ type CertificateOrderData struct {
 // CertificateRenewData struct for holding user-provided renew data for cert-renew.
 type CertificateRenewData struct {
 	RotateKeys bool `json:"rotate_keys"`
+}
+
+//CertificatesInfo List of certificates
+type CertificatesInfo struct {
+	CertificateList []CertificateInfo `json:"certificates"`
+}
+
+//OrderPolicy ...
+type OrderPolicy struct {
+	Name             string `json:"name,omitempty"`
+	AutoRenewEnabled bool   `json:"auto_renew_enabled,omitempty"`
 }

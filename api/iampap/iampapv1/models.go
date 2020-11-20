@@ -1,6 +1,9 @@
 package iampapv1
 
-import "github.com/IBM-Cloud/bluemix-go/models"
+import (
+	"github.com/IBM-Cloud/bluemix-go/api/iampap/iampapv2"
+	"github.com/IBM-Cloud/bluemix-go/models"
+)
 
 // Policy is the model of IAM PAP policy
 type Policy struct {
@@ -38,6 +41,17 @@ func ConvertRoleModels(roles []models.PolicyRole) []Role {
 	results := make([]Role, len(roles))
 	for i, r := range roles {
 		results[i] = fromModel(r)
+	}
+	return results
+}
+
+// ConvertV2RoleModels will transform role models returned from "/v2/roles" to the model used by policy
+func ConvertV2RoleModels(roles []iampapv2.Role) []Role {
+	results := make([]Role, len(roles))
+	for i, r := range roles {
+		results[i] = Role{
+			RoleID: r.Crn,
+		}
 	}
 	return results
 }
@@ -115,6 +129,11 @@ func (s *Subject) ResourceType() string {
 	return s.GetAttribute("resourceType")
 }
 
+// ResourceGroupID returns resource group ID attribute of policy resource if exists
+func (s *Subject) ResourceGroupID() string {
+	return s.GetAttribute(ResourceGroupIDAttribute)
+}
+
 // SetAccessGroupID sets value of access group ID attribute of policy subject
 func (s *Subject) SetAccessGroupID(value string) {
 	s.SetAttribute("access_group_id", value)
@@ -143,6 +162,11 @@ func (s *Subject) SetServiceInstance(value string) {
 // SetResourceType sets value of resource type attribute of policy subject
 func (s *Subject) SetResourceType(value string) {
 	s.SetAttribute("resourceType", value)
+}
+
+// SetResourceGroupID sets value of resource group ID attribute of policy resource
+func (s *Subject) SetResourceGroupID(value string) {
+	s.SetAttribute(ResourceGroupIDAttribute, value)
 }
 
 // Resource is the object controlled by the policy

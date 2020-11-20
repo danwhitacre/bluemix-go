@@ -30,7 +30,9 @@ type ClusterInfo struct {
 	Name                          string   `json:"name"`
 	Region                        string   `json:"region"`
 	ResourceGroupID               string   `json:"resourceGroup"`
+	ResourceGroupName             string   `json:"resourceGroupName"`
 	ServerURL                     string   `json:"serverURL"`
+	MasterURL                     string   `json:"masterURL"` // vpc cluster serverURL is empty
 	State                         string   `json:"state"`
 	OrgID                         string   `json:"logOrg"`
 	OrgName                       string   `json:"logOrgName"`
@@ -57,6 +59,7 @@ type ClusterInfo struct {
 	PublicServiceEndpointEnabled  bool     `json:"publicServiceEndpointEnabled"`
 	PublicServiceEndpointURL      string   `json:"publicServiceEndpointURL"`
 	Type                          string   `json:"type"`
+	Provider                      string   `json:"provider"`
 }
 
 // ClusterUpdateParam ...
@@ -189,24 +192,25 @@ func (c ClusterSoftlayerHeader) ToMap() map[string]string {
 
 //ClusterCreateRequest ...
 type ClusterCreateRequest struct {
-	GatewayEnabled         bool   `json:"GatewayEnabled" description:"true for gateway enabled cluster"`
-	Datacenter             string `json:"dataCenter" description:"The worker's data center"`
-	Isolation              string `json:"isolation" description:"Can be 'public' or 'private'"`
-	MachineType            string `json:"machineType" description:"The worker's machine type"`
-	Name                   string `json:"name" binding:"required" description:"The cluster's name"`
-	PrivateVlan            string `json:"privateVlan" description:"The worker's private vlan"`
-	PublicVlan             string `json:"publicVlan" description:"The worker's public vlan"`
-	WorkerNum              int    `json:"workerNum,omitempty" binding:"required" description:"The number of workers"`
-	NoSubnet               bool   `json:"noSubnet" description:"Indicate whether portable subnet should be ordered for user"`
-	MasterVersion          string `json:"masterVersion,omitempty" description:"Desired version of the requested master"`
-	Prefix                 string `json:"prefix,omitempty" description:"hostname prefix for new workers"`
-	DiskEncryption         bool   `json:"diskEncryption" description:"disable encryption on a worker"`
-	PrivateEndpointEnabled bool   `json:"privateSeviceEndpoint"`
-	PublicEndpointEnabled  bool   `json:"publicServiceEndpoint"`
-	DisableAutoUpdate      bool   `json:"disableAutoUpdate"`
-	DefaultWorkerPoolName  string `json:"defaultWorkerPoolName" description:"The name of default workerpool"`
-	PodSubnet              string `json:"podSubnet"`
-	ServiceSubnet          string `json:"serviceSubnet"`
+	GatewayEnabled               bool   `json:"GatewayEnabled" description:"true for gateway enabled cluster"`
+	Datacenter                   string `json:"dataCenter" description:"The worker's data center"`
+	Isolation                    string `json:"isolation" description:"Can be 'public' or 'private'"`
+	MachineType                  string `json:"machineType" description:"The worker's machine type"`
+	Name                         string `json:"name" binding:"required" description:"The cluster's name"`
+	PrivateVlan                  string `json:"privateVlan" description:"The worker's private vlan"`
+	PublicVlan                   string `json:"publicVlan" description:"The worker's public vlan"`
+	WorkerNum                    int    `json:"workerNum,omitempty" binding:"required" description:"The number of workers"`
+	NoSubnet                     bool   `json:"noSubnet" description:"Indicate whether portable subnet should be ordered for user"`
+	MasterVersion                string `json:"masterVersion,omitempty" description:"Desired version of the requested master"`
+	Prefix                       string `json:"prefix,omitempty" description:"hostname prefix for new workers"`
+	DiskEncryption               bool   `json:"diskEncryption" description:"disable encryption on a worker"`
+	PrivateEndpointEnabled       bool   `json:"privateSeviceEndpoint"`
+	PublicEndpointEnabled        bool   `json:"publicServiceEndpoint"`
+	DisableAutoUpdate            bool   `json:"disableAutoUpdate"`
+	DefaultWorkerPoolName        string `json:"defaultWorkerPoolName" description:"The name of default workerpool"`
+	PodSubnet                    string `json:"podSubnet"`
+	ServiceSubnet                string `json:"serviceSubnet"`
+	DefaultWorkerPoolEntitlement string `json:"defaultWorkerPoolEntitlement" description:"Additional licence/entitlement for the default worker pool"`
 }
 
 // ServiceBindRequest ...
@@ -253,7 +257,7 @@ type Clusters interface {
 	Update(name string, params ClusterUpdateParam, target ClusterTargetHeader) error
 	UpdateClusterWorker(clusterNameOrID string, workerID string, params UpdateWorkerCommand, target ClusterTargetHeader) error
 	UpdateClusterWorkers(clusterNameOrID string, workerIDs []string, params UpdateWorkerCommand, target ClusterTargetHeader) error
-	Delete(name string, target ClusterTargetHeader) error
+	Delete(name string, target ClusterTargetHeader, deleteDependencies ...bool) error
 	Find(name string, target ClusterTargetHeader) (ClusterInfo, error)
 	FindWithOutShowResources(name string, target ClusterTargetHeader) (ClusterInfo, error)
 	FindWithOutShowResourcesCompatible(name string, target ClusterTargetHeader) (ClusterInfo, error)
@@ -268,7 +272,7 @@ type Clusters interface {
 	ListServicesBoundToCluster(clusterNameOrID, namespace string, target ClusterTargetHeader) (BoundServices, error)
 	FindServiceBoundToCluster(clusterNameOrID, serviceName, namespace string, target ClusterTargetHeader) (BoundService, error)
 	RefreshAPIServers(clusterNameOrID string, target ClusterTargetHeader) error
-	FetchOCTokenForKubeConfig(kubeConfig []byte, clusterInfo *ClusterInfo) ([]byte, error)
+	FetchOCTokenForKubeConfig(kubeConfig []byte, clusterInfo *ClusterInfo, skipSSLVerification bool) ([]byte, error)
 }
 
 type clusters struct {
@@ -279,6 +283,11 @@ func newClusterAPI(c *client.Client) Clusters {
 	return &clusters{
 		client: c,
 	}
+}
+
+func (r *ClusterInfo) IsStagingSatelliteCluster() bool {
+
+	return strings.Index(r.ServerURL, "stg") > 0 && r.Provider == "satellite"
 }
 
 //Create ...
@@ -319,8 +328,13 @@ func (r *clusters) UpdateClusterWorkers(clusterNameOrID string, workerIDs []stri
 }
 
 //Delete ...
-func (r *clusters) Delete(name string, target ClusterTargetHeader) error {
-	rawURL := fmt.Sprintf("/v1/clusters/%s", name)
+func (r *clusters) Delete(name string, target ClusterTargetHeader, deleteDependencies ...bool) error {
+	var rawURL string
+	if len(deleteDependencies) != 0 {
+		rawURL = fmt.Sprintf("/v1/clusters/%s?deleteResources=%t", name, deleteDependencies[0])
+	} else {
+		rawURL = fmt.Sprintf("/v1/clusters/%s", name)
+	}
 	_, err := r.client.Delete(rawURL, target.ToMap())
 	return err
 }
@@ -367,6 +381,10 @@ func (r *clusters) FindWithOutShowResourcesCompatible(name string, target Cluste
 	_, err := r.client.Get(rawURL, &cluster, target.ToMap())
 	if err != nil {
 		return cluster, err
+	}
+	// Handle VPC cluster.  ServerURL is blank for v2/vpc clusters
+	if cluster.ServerURL == "" {
+		cluster.ServerURL = cluster.MasterURL
 	}
 	return cluster, err
 }
@@ -443,7 +461,7 @@ func (r *clusters) GetClusterConfig(name, dir string, admin bool, target Cluster
 		if yamlConfig, err = ioutil.ReadFile(kubeyml); err != nil {
 			return "", err
 		}
-		yamlConfig, err = r.FetchOCTokenForKubeConfig(yamlConfig, &clusterInfo)
+		yamlConfig, err = r.FetchOCTokenForKubeConfig(yamlConfig, &clusterInfo, clusterInfo.IsStagingSatelliteCluster())
 		if err != nil {
 			return "", err
 		}
@@ -553,7 +571,7 @@ func (r *clusters) GetClusterConfigDetail(name, dir string, admin bool, target C
 		if yamlConfig, err = ioutil.ReadFile(kubeyml); err != nil {
 			return clusterkey, err
 		}
-		yamlConfig, err = r.FetchOCTokenForKubeConfig(yamlConfig, &clusterInfo)
+		yamlConfig, err = r.FetchOCTokenForKubeConfig(yamlConfig, &clusterInfo, clusterInfo.IsStagingSatelliteCluster())
 		if err != nil {
 			return clusterkey, err
 		}
@@ -570,7 +588,6 @@ func (r *clusters) GetClusterConfigDetail(name, dir string, admin bool, target C
 		openshiftusers := openshiftyaml.Users
 		for _, usr := range openshiftusers {
 			if strings.HasPrefix(usr.Name, "IAM") {
-				fmt.Println("Tokennnnnn", usr.User.Token)
 				clusterkey.Token = usr.User.Token
 			}
 		}
@@ -677,7 +694,7 @@ func (r *clusters) StoreConfig(name, dir string, admin, createCalicoConfig bool,
 		if yamlConfig, err = ioutil.ReadFile(kubeconfigFileName); err != nil {
 			return "", "", err
 		}
-		yamlConfig, err = r.FetchOCTokenForKubeConfig(yamlConfig, &clusterInfo)
+		yamlConfig, err = r.FetchOCTokenForKubeConfig(yamlConfig, &clusterInfo, clusterInfo.IsStagingSatelliteCluster())
 		if err != nil {
 			return "", "", err
 		}
@@ -806,7 +823,7 @@ func (r *clusters) StoreConfigDetail(name, dir string, admin, createCalicoConfig
 		if yamlConfig, err = ioutil.ReadFile(kubeconfigFileName); err != nil {
 			return "", clusterkey, err
 		}
-		yamlConfig, err = r.FetchOCTokenForKubeConfig(yamlConfig, &clusterInfo)
+		yamlConfig, err = r.FetchOCTokenForKubeConfig(yamlConfig, &clusterInfo, clusterInfo.IsStagingSatelliteCluster())
 		if err != nil {
 			return "", clusterkey, err
 		}

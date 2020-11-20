@@ -6,13 +6,14 @@ import (
 	"github.com/IBM-Cloud/bluemix-go/client"
 )
 
-// WorkerPool common worker pool data
+// WorkerPoolConfig common worker pool data
 type WorkerPoolConfig struct {
 	Name        string            `json:"name" binding:"required"`
 	Size        int               `json:"sizePerZone" binding:"required"`
 	MachineType string            `json:"machineType" binding:"required"`
 	Isolation   string            `json:"isolation"`
 	Labels      map[string]string `json:"labels"`
+	Entitlement string            `json:"entitlement"`
 }
 
 // WorkerPoolRequest provides worker pool data
@@ -26,9 +27,10 @@ type WorkerPoolRequest struct {
 // WorkerPoolPatchRequest provides attributes to patch update worker pool
 // swagger:model
 type WorkerPoolPatchRequest struct {
-	Size            int    `json:"sizePerZone"`
-	ReasonForResize string `json:"reasonForResize"`
-	State           string `json:"state"`
+	Size            int               `json:"sizePerZone"`
+	Labels          map[string]string `json:"labels"`
+	ReasonForResize string            `json:"reasonForResize"`
+	State           string            `json:"state"`
 }
 
 // WorkerPoolResponse provides worker pool data
@@ -81,6 +83,7 @@ type WorkerPoolZoneResponses []WorkerPoolZoneResponse
 type WorkerPool interface {
 	CreateWorkerPool(clusterNameOrID string, workerPoolReq WorkerPoolRequest, target ClusterTargetHeader) (WorkerPoolResponse, error)
 	ResizeWorkerPool(clusterNameOrID, workerPoolNameOrID string, size int, target ClusterTargetHeader) error
+	UpdateLabelsWorkerPool(clusterNameOrID, workerPoolNameOrID string, labels map[string]string, target ClusterTargetHeader) error
 	PatchWorkerPool(clusterNameOrID, workerPoolNameOrID, state string, target ClusterTargetHeader) error
 	DeleteWorkerPool(clusterNameOrID string, workerPoolNameOrID string, target ClusterTargetHeader) error
 	ListWorkerPools(clusterNameOrID string, target ClusterTargetHeader) ([]WorkerPoolResponse, error)
@@ -121,6 +124,16 @@ func (w *workerpool) ResizeWorkerPool(clusterNameOrID, workerPoolNameOrID string
 	requestBody := WorkerPoolPatchRequest{
 		State: "resizing",
 		Size:  size,
+	}
+	_, err := w.client.Patch(fmt.Sprintf("/v1/clusters/%s/workerpools/%s", clusterNameOrID, workerPoolNameOrID), requestBody, nil, target.ToMap())
+	return err
+}
+
+// UpdateLabelsWorkerPool calls the API to resize a worker with the labels option
+func (w *workerpool) UpdateLabelsWorkerPool(clusterNameOrID, workerPoolNameOrID string, labels map[string]string, target ClusterTargetHeader) error {
+	requestBody := WorkerPoolPatchRequest{
+		State:  "labels",
+		Labels: labels,
 	}
 	_, err := w.client.Patch(fmt.Sprintf("/v1/clusters/%s/workerpools/%s", clusterNameOrID, workerPoolNameOrID), requestBody, nil, target.ToMap())
 	return err

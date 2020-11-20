@@ -24,6 +24,8 @@ type ContainerServiceAPI interface {
 	Subnets() Subnets
 	KubeVersions() KubeVersions
 	Vlans() Vlans
+	Kms() Kms
+	AddOns() AddOns
 }
 
 //ContainerService holds the client
@@ -107,4 +109,14 @@ func (c *csService) KubeVersions() KubeVersions {
 //Vlans implements DC Cluster Vlan API
 func (c *csService) Vlans() Vlans {
 	return newVlanAPI(c.Client)
+}
+
+//Kms implements Cluster Kms API
+func (c *csService) Kms() Kms {
+	return newKmsAPI(c.Client)
+}
+
+//AddOns implements Cluster Add Ons
+func (c *csService) AddOns() AddOns {
+	return newAddOnsAPI(c.Client)
 }
